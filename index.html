@@ -63,6 +63,7 @@ button:focus-visible{outline:2px solid #22d3ee;outline-offset:2px}
    <div id="pill" class="absolute top-0 h-10 rounded-xl border border-white/10 bg-white/10 shadow-[0_0_20px_rgba(129,140,248,.25)]"></div>
    <button class="ib" data-tool="hand" title="Hand (V)"><i data-lucide="hand" class="h-[18px] w-[18px]"></i></button>
    <button class="ib" data-tool="pen" title="Pen (P)"><i data-lucide="pen-line" class="h-[18px] w-[18px]"></i></button>
+   <button class="ib" data-tool="hl" title="Highlighter (H)"><i data-lucide="highlighter" class="h-[18px] w-[18px]"></i></button>
    <button class="ib" data-tool="eraser" title="Eraser (E)"><i data-lucide="eraser" class="h-[18px] w-[18px]"></i></button>
    <button class="ib" data-tool="rect" title="Rectangle (R)"><i data-lucide="square" class="h-[18px] w-[18px]"></i></button>
    <button class="ib" data-tool="ellipse" title="Circle (C)"><i data-lucide="circle" class="h-[18px] w-[18px]"></i></button>
@@ -75,6 +76,8 @@ button:focus-visible{outline:2px solid #22d3ee;outline-offset:2px}
   <button id="sizeBtn" class="ib" title="Stroke size"><span id="sizeDot" class="rounded-full bg-white transition-all duration-200"></span></button>
   <button id="bgBtn" class="ib" title="Canvas background"><i data-lucide="palette" class="h-[18px] w-[18px]"></i></button>
   <button id="engBtn" class="ib" title="Engineering: scale, units, snap, symbols"><i data-lucide="ruler" class="h-[18px] w-[18px]"></i></button>
+  <button id="imgBtn" class="ib" title="Upload photo to explain on"><i data-lucide="image-plus" class="h-[18px] w-[18px]"></i></button>
+  <input id="imgIn" type="file" accept="image/*" class="hidden">
   <span class="div"></span>
   <button id="undo" class="ib" title="Undo (Ctrl+Z)"><i data-lucide="undo-2" class="h-[18px] w-[18px]"></i></button>
   <button id="redo" class="ib" title="Redo (Ctrl+Shift+Z)"><i data-lucide="redo-2" class="h-[18px] w-[18px]"></i></button>
@@ -187,7 +190,8 @@ function copyText(s){return navigator.clipboard?.writeText(s).catch(()=>fb(s))||
 /* ---------- canvas render ---------- */
 function resize(){dpr=devicePixelRatio||1;W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';dirty=true;placePill()}
 const col=c=>c==='auto'?ink:c;
-function drawObj(c,o){c.strokeStyle=c.fillStyle=col(o.color);c.lineWidth=o.size;c.lineCap=c.lineJoin='round';if(TYPES[o.type]){c.save();TYPES[o.type].draw(c,o);c.restore();return}
+function drawObj(c,o){if(o.hl&&o.type==='pen'){c.save();c.globalAlpha=.4;drawBase(c,o);c.restore()}else drawBase(c,o)}
+function drawBase(c,o){c.strokeStyle=c.fillStyle=col(o.color);c.lineWidth=o.size;c.lineCap=o.hl?'butt':'round';c.lineJoin='round';if(TYPES[o.type]){c.save();TYPES[o.type].draw(c,o);c.restore();return}
  if(o.type==='pen'){const p=o.pts;if(!p.length)return;if(p.length<3){c.beginPath();c.arc(p[0][0],p[0][1],o.size/2,0,7);c.fill();if(p.length===2){c.beginPath();c.moveTo(...p[0]);c.lineTo(...p[1]);c.stroke()}return}
   c.beginPath();c.moveTo(p[0][0],p[0][1]);for(let i=1;i<p.length-1;i++){if(o.raw){c.lineTo(p[i][0],p[i][1]);continue}c.quadraticCurveTo(p[i][0],p[i][1],(p[i][0]+p[i+1][0])/2,(p[i][1]+p[i+1][1])/2)}c.lineTo(p[p.length-1][0],p[p.length-1][1]);c.stroke()}
  else if(o.type==='rect'){if(o.f){c.globalAlpha=.16;c.fillRect(o.x,o.y,o.w,o.h);c.globalAlpha=1}c.strokeRect(o.x,o.y,o.w,o.h)}
@@ -231,6 +235,7 @@ function renderNote(n){let el=nd.get(n.id);
 
 /* ---------- eraser ---------- */
 const eraseR=()=>(12+st.size*.6)*st.boost;
+const hlW=()=>Math.max(16,st.size*1.6);
 function hit(o,x,y,r){const k=r+o.size/2;if(TYPES[o.type])return TYPES[o.type].hit(o,x,y,k);
  if(o.type==='pen'){const p=o.pts;if(p.length===1)return Math.hypot(x-p[0][0],y-p[0][1])<k;for(let i=1;i<p.length;i++)if(segD(x,y,p[i-1][0],p[i-1][1],p[i][0],p[i][1])<k)return true;return false}
  const x1=Math.min(o.x,o.x+o.w),y1=Math.min(o.y,o.y+o.h),x2=Math.max(o.x,o.x+o.w),y2=Math.max(o.y,o.y+o.h);
@@ -238,25 +243,25 @@ function hit(o,x,y,r){const k=r+o.size/2;if(TYPES[o.type])return TYPES[o.type].h
  if(o.type==='rect')return segD(x,y,x1,y1,x2,y1)<k||segD(x,y,x2,y1,x2,y2)<k||segD(x,y,x2,y2,x1,y2)<k||segD(x,y,x1,y2,x1,y1)<k;
  const rx=(x2-x1)/2||.5,ry=(y2-y1)/2||.5;const q=Math.hypot((x-x1-rx)/rx,(y-y1-ry)/ry);if(o.f&&q<1)return true;return Math.abs(q-1)*Math.min(rx,ry)<k}
 function erase(p,g){const r=eraseR()/st.v.z;let ch=0;
- for(const o of [...st.objs.values()]){if(!hit(o,p.x,p.y,r))continue;ch=1;
+ for(const o of [...st.objs.values()]){if(o.type==='img'||!hit(o,p.x,p.y,r))continue;ch=1;
   const pts=o.type==='pen'?o.pts:(!o.f&&PEN_OF[o.type])?PEN_OF[o.type](o):null;
   st.objs.delete(o.id);send({t:'del',ids:[o.id]});const i=g.add.indexOf(o);if(i>=0)g.add.splice(i,1);else g.del.push(o);
-  if(pts)for(const pc of cut(pts,p,r+o.size/2)){const n={id:rnd(9),type:'pen',color:o.color,size:o.size,pts:pc};if(o.type!=='pen'||o.raw)n.raw=1;st.objs.set(n.id,n);g.add.push(n);send({t:'put',o:n})}}
+  if(pts)for(const pc of cut(pts,p,r+o.size/2)){const n={id:rnd(9),type:'pen',color:o.color,size:o.size,pts:pc};if(o.type!=='pen'||o.raw)n.raw=1;if(o.hl)n.hl=1;st.objs.set(n.id,n);g.add.push(n);send({t:'put',o:n})}}
  if(ch)dirty=true}
 
 /* ---------- pointer input ---------- */
 const ptr=new Map();let g=null,lastSend=0;
 function setTool(t){st.tool=t;document.body.dataset.t=t;$$('#tools .ib').forEach(b=>b.classList.toggle('on',b.dataset.tool===t));placePill();
- cv.style.cursor={hand:'grab',pen:'none',eraser:'none',rect:'crosshair',ellipse:'crosshair',note:'crosshair'}[t]||TOOLS[t]?.cursor||'crosshair';cur.classList.add('hidden');updCur()}
-function updCur(x,y){if(st.tool!=='pen'&&st.tool!=='eraser'){cur.classList.add('hidden');return}
- const d=st.tool==='eraser'?eraseR()*2:Math.max(6,st.size*st.v.z);cur.style.width=cur.style.height=d+'px';cur.style.background=st.tool==='pen'?col(st.color)+'55':'rgba(255,255,255,.05)';
+ cv.style.cursor={hand:'grab',pen:'none',hl:'none',eraser:'none',rect:'crosshair',ellipse:'crosshair',note:'crosshair'}[t]||TOOLS[t]?.cursor||'crosshair';cur.classList.add('hidden');updCur()}
+function updCur(x,y){if(st.tool!=='pen'&&st.tool!=='eraser'&&st.tool!=='hl'){cur.classList.add('hidden');return}
+ const d=st.tool==='eraser'?eraseR()*2:Math.max(6,(st.tool==='hl'?hlW():st.size)*st.v.z);cur.style.width=cur.style.height=d+'px';cur.style.background=st.tool==='eraser'?'rgba(255,255,255,.05)':col(st.color)+(st.tool==='hl'?'66':'55');
  if(x!=null){cur.style.left=x+'px';cur.style.top=y+'px';cur.classList.remove('hidden')}}
 function cancelDraw(){if(g?.m==='draw'){st.objs.delete(g.o.id);send({t:'del',ids:[g.o.id]});dirty=true}if(g?.m==='erase'&&(g.del.length||g.add.length))commit({add:g.add,rem:g.del,addN:[],remN:[]});g=null}
 cv.addEventListener('pointerdown',e=>{closePops();cv.setPointerCapture(e.pointerId);ptr.set(e.pointerId,{x:e.clientX,y:e.clientY});anim=null;
  if(ptr.size===2){cancelDraw();const[a,b]=[...ptr.values()];g={m:'pinch',d:Math.hypot(a.x-b.x,a.y-b.y),mx:(a.x+b.x)/2,my:(a.y+b.y)/2};return}
  if(e.button===1||space||st.tool==='hand'){e.preventDefault();g={m:'pan'};cv.style.cursor='grabbing';return}
  if(e.button!==0||!canDraw())return;const p=sn(w2(e.clientX,e.clientY)),base={id:rnd(9),color:st.color,size:st.size};
- if(st.tool==='pen'){const o={...base,type:'pen',pts:[[r1(p.x),r1(p.y)]]};st.objs.set(o.id,o);send({t:'pen0',o});g={m:'draw',o};dirty=true}
+ if(st.tool==='pen'||st.tool==='hl'){const o={...base,type:'pen',pts:[[r1(p.x),r1(p.y)]]};if(st.tool==='hl'){o.hl=1;o.size=hlW()}st.objs.set(o.id,o);send({t:'pen0',o});g={m:'draw',o};dirty=true}
  else if(st.tool==='select'){pickSel(p)}
  else if(TOOLS[st.tool]?.click){TOOLS[st.tool].click(p,base,e)}
  else if(TOOLS[st.tool]?.create){const T=TOOLS[st.tool],o=T.create(p,base);st.objs.set(o.id,o);g={m:'draw',o,T,sx:p.x,sy:p.y}}
@@ -284,7 +289,7 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 addEventListener('keydown',e=>{if(/INPUT|TEXTAREA/.test(e.target.tagName))return;const k=e.key.toLowerCase();
  if(k===' '){if(!space){space=true;cv.style.cursor='grab'}e.preventDefault();return}
  if((e.ctrlKey||e.metaKey)&&k==='z'){e.preventDefault();e.shiftKey?redo():undo();return}if((e.ctrlKey||e.metaKey)&&k==='y'){e.preventDefault();redo();return}
- const m={v:'hand',p:'pen',e:'eraser',r:'rect',c:'ellipse',n:'note',...KEYS};if(m[k]&&!e.ctrlKey&&!e.metaKey)setTool(m[k])});
+ const m={v:'hand',p:'pen',h:'hl',e:'eraser',r:'rect',c:'ellipse',n:'note',...KEYS};if(m[k]&&!e.ctrlKey&&!e.metaKey)setTool(m[k])});
 addEventListener('keyup',e=>{if(e.key===' '){space=false;if(!/INPUT|TEXTAREA/.test(e.target.tagName))e.preventDefault();setTool(st.tool)}});
 addEventListener('resize',resize);
 
@@ -574,10 +579,25 @@ document.addEventListener('paste',e=>{if(inField(e.target))return;const cd=e.cli
  if(raw||(clip&&txt&&txt===clipTag))pasteObj(raw||clip,p);else if(file)pasteImg(file,p);else if(txt.trim())pasteText(txt.trim(),p);else toast('Nothing to paste')});
 addEventListener('keydown',e=>{if(inField(e.target)||!(e.ctrlKey||e.metaKey)||e.key.toLowerCase()!=='d')return;e.preventDefault();const o=selObj();if(!o||!canDraw())return;const[x,y,w,h]=ob(o);pasteObj(JSON.stringify(o),{x:x+w/2+24,y:y+h/2+24},1)});
 
+/* ---------- upload photo (annotate on top with pen / highlighter) ---------- */
+function addPhoto(f,at){if(!canDraw())return;if(!f||!/^image\//.test(f.type))return toast('Please choose an image file');
+ const r=new FileReader();r.onerror=()=>toast('Could not read that image');
+ r.onload=()=>{const im=new Image();im.onerror=()=>toast('This image format is not supported');
+  im.onload=()=>{const lim=st.room?45000:260000,mx=st.room?900:1600,c=document.createElement('canvas'),x=c.getContext('2d');let s=Math.min(1,mx/Math.max(im.width,im.height)),u='';
+   for(let i=0;i<10;i++){c.width=Math.max(1,im.width*s|0);c.height=Math.max(1,im.height*s|0);x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);u=c.toDataURL('image/jpeg',.82);if(u.length<lim)break;s*=.8}
+   if(u.length>=lim*2)return toast('Image is too large to share');
+   const z=st.v.z,k=Math.min(2,.7*W/z/c.width,.7*H/z/c.height),w=c.width*k,h=c.height*k,p=at||w2(W/2,H/2);
+   const o={id:rnd(9),type:'img',color:'#ffffff',size:1,x:p.x-w/2,y:p.y-h/2,w,h,src:u};addObj(o);st.sel=null;setTool('pen');toast('Photo added \u2014 draw on it with the pen or highlighter')};
+  im.src=r.result};r.readAsDataURL(f)}
+$('#imgBtn').onclick=e=>{e.stopPropagation();if(canDraw())$('#imgIn').click()};
+$('#imgIn').onchange=e=>{const f=e.target.files[0];e.target.value='';if(f)addPhoto(f)};
+addEventListener('dragover',e=>{if([...(e.dataTransfer?.types||[])].includes('Files'))e.preventDefault()});
+addEventListener('drop',e=>{const f=[...(e.dataTransfer?.files||[])].find(f=>/^image\//.test(f.type));if(!f)return;e.preventDefault();addPhoto(f,w2(e.clientX,e.clientY))});
+
 /* ---------- boot ---------- */
 resize();setTool('pen');setColor(PALETTE[0]);setSize(6);setTab('peers');renderPeers();syncBtns();setBg(st.bg,1);setGrid('dots',1);load(SOLO_KEY);lucide.createIcons();placePill();document.fonts?.ready.then(placePill);
 requestAnimationFrame(frame);
 const q=new URLSearchParams(location.search).get('room');if(q)enter(q);
 </script>
 </body>
-</html>
+</html>
