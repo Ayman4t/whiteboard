@@ -386,25 +386,46 @@ function setStatus(k){const n=Math.max(0,st.peers.length-1);const cl='sdot h-2 w
 function send(m,except){for(const c of conns.values())if(c!==except&&c.open&&(!st.host||pinfo.has(c.peer)))c.send(m)}
 function inviteLink(){return location.origin+location.pathname+'?room='+st.room}
 function connect(code){saveNow();clearBoard();st.room=code.toUpperCase();const u=new URL(location.href);u.searchParams.set('room',st.room);try{history.replaceState(null,'',u)}catch(e){}
- setStatus('ping');const hid='sketchmesh-'+st.room.toLowerCase();
+ setStatus('ping');
  if(!window.Peer){toast('PeerJS failed to load — check your connection');return setStatus('off')}
- peer=new Peer(hid);hookCalls(peer);
- peer.on('open',id=>{st.host=true;banned.clear();approved.clear();loadBans();loadOk();load(roomKey(st.room));loadChat();me.id=id;st.peers=[{...me}];setStatus('on');renderPeers();toast('Room ready — copy the invite link to share it')});
- peer.on('connection',c=>wire(c));
- peer.on('error',e=>{if(e.type==='unavailable-id'){peer.destroy();peer=new Peer();hookCalls(peer);
-   peer.on('open',id=>{me.id=id;wire(peer.connect(hid,{reliable:true,serialization:'json'}))});
-   peer.on('error',e2=>{if(st.rj)return;toast(e2.type==='peer-unavailable'?'Room not found':'Connection error');setStatus('off');leaveRoom()});peer.on('disconnected',()=>setStatus('off'))}
-  else{toast('Connection error: '+e.type);setStatus('off')}});
- peer.on('disconnected',()=>{if(st.host){setStatus('ping');setTimeout(()=>{try{if(peer&&peer.disconnected&&!peer.destroyed)peer.reconnect()}catch(e){}},2000)}})}
-function wire(c){c.on('open',()=>{conns.set(c.peer,c);if(!st.host){c.send({t:'hello',name:me.name,color:me.color,tok:TOK});setStatus('on')}});
- c.on('data',m=>handle(m,c));
- c.on('close',()=>{const cur=conns.get(c.peer)===c;if(cur)conns.delete(c.peer);if(st.host){if(pending.delete(c.peer))knock();admitted.delete(c.peer);pinfo.delete(c.peer);bcastPeers()}else if(cur&&!st.kicked){applyPerm(null);toast('Connection lost \u2014 reconnecting\u2026');st.peers=[{...me}];renderPeers();setStatus('ping');st.rj=true;clearTimeout(rjT);rjT=setTimeout(()=>rejoin(0),1500)}})}
+ startPeer(st.room,0)}
+/* try to own the room id (become host); if someone already holds it, join them as a guest.
+   A stale/ghost registration (e.g. a device that went to sleep) makes the join hang, so we time out and retry. */
+function startPeer(room,n){if(st.room!==room||st.host)return;const hid='sketchmesh-'+room.toLowerCase();try{peer?.destroy()}catch(e){}
+ const mine=peer=new Peer(hid);hookCalls(mine);
+ mine.on('open',id=>{if(peer!==mine)return;st.host=true;st.rj=false;banned.clear();approved.clear();loadBans();loadOk();load(roomKey(st.room));if(!st.objs.size&&!st.notes.size)loadGuestBackup();loadChat();me.id=id;st.peers=[{...me}];setStatus('on');renderPeers();toast('Room ready — copy the invite link to share it')});
+ mine.on('connection',c=>wire(c));
+ mine.on('error',e=>{if(peer!==mine)return;if(e.type==='unavailable-id')guestJoin(room,n);else{toast('Connection error: '+e.type);setStatus('off')}});
+ mine.on('disconnected',()=>{if(st.host&&peer===mine){setStatus('ping');setTimeout(()=>{try{if(peer===mine&&mine.disconnected&&!mine.destroyed)mine.reconnect()}catch(e){}},2000)}})}
+function guestJoin(room,n){if(st.room!==room||st.host)return;const hid='sketchmesh-'+room.toLowerCase();try{peer?.destroy()}catch(e){}
+ const gp=peer=new Peer();hookCalls(gp);let done=false,to;
+ const again=why=>{if(done||peer!==gp)return;done=true;clearTimeout(to);try{gp.destroy()}catch(e){}if(st.room!==room||st.host)return;
+  if(n>=10){toast(why==='peer-unavailable'?'Room not found':'Connection error');setStatus('off');return leaveRoom()}
+  if(n===0)toast('Room is busy — retrying…');setStatus('ping');setTimeout(()=>startPeer(room,n+1),3000)};
+ gp.on('open',id=>{if(peer!==gp)return;me.id=id;const c=gp.connect(hid,{reliable:true,serialization:'json'});wire(c);c.on('open',()=>{done=true;clearTimeout(to)});to=setTimeout(()=>again('timeout'),9000)});
+ gp.on('error',e2=>{if(peer!==gp)return;if(!done)return again(e2.type);if(st.rj)return;toast(e2.type==='peer-unavailable'?'Room not found':'Connection error');setStatus('off');leaveRoom()});
+ gp.on('disconnected',()=>{if(peer===gp)setStatus('off')})}
+function wire(c){c.on('open',()=>{conns.set(c.peer,c);seen.set(c.peer,Date.now());if(!st.host){c.send({t:'hello',name:me.name,color:me.color,tok:TOK});setStatus('on')}});
+ c.on('data',m=>{seen.set(c.peer,Date.now());if(m&&m.t==='ping'){try{c.send({t:'pong'})}catch(e){}return}if(m&&m.t==='pong')return;handle(m,c)});
+ c.on('close',()=>{const cur=conns.get(c.peer)===c;if(cur)conns.delete(c.peer);if(st.host){if(pending.delete(c.peer))knock();admitted.delete(c.peer);pinfo.delete(c.peer);bcastPeers()}else if(cur&&!st.kicked)hostLost()})}
+function hostLost(){if(st.host||st.kicked||!st.room)return;applyPerm(null);toast('Connection lost \u2014 reconnecting\u2026');st.peers=[{...me}];renderPeers();setStatus('ping');st.rj=true;clearTimeout(rjT);rjT=setTimeout(()=>rejoin(0),1500)}
 let rjT;
 function rejoin(n){clearTimeout(rjT);if(!st.room||st.host||st.kicked||!st.rj)return;
  if(n>=30){st.rj=false;toast('Could not reconnect to the room');return leaveRoom()}
+ if(n===4){startPeer(st.room,5);return}
  const hid='sketchmesh-'+st.room.toLowerCase();try{peer?.destroy()}catch(e){}
  peer=new Peer();hookCalls(peer);peer.on('error',()=>{});peer.on('open',id=>{me.id=id;wire(peer.connect(hid,{reliable:true,serialization:'json'}))});
  rjT=setTimeout(()=>{if(st.rj)rejoin(n+1)},5000)}
+/* ---------- heartbeat: detect peers that vanished silently (sleep, tab suspended, NAT drop) ---------- */
+const seen=new Map(),HB_DEAD=20000;
+function dropPeer(id){const c=conns.get(id),nm=pinfo.get(id)?.name||'A peer';conns.delete(id);admitted.delete(id);pinfo.delete(id);try{c?.close()}catch(e){}bcastPeers();toast(nm+' lost connection')}
+setInterval(()=>{if(!st.room)return;const now=Date.now();for(const c of conns.values())if(c.open)try{c.send({t:'ping'})}catch(e){}
+ if(st.host){for(const id of[...pinfo.keys()])if(now-(seen.get(id)||0)>HB_DEAD)dropPeer(id)}
+ else{const c=[...conns.values()][0];if(c&&now-(seen.get(c.peer)||now)>HB_DEAD){conns.delete(c.peer);try{c.close()}catch(e){}hostLost()}}},4000);
+function wake(){if(!st.room)return;try{if(st.host&&peer&&peer.disconnected&&!peer.destroyed)peer.reconnect()}catch(e){}
+ const t0=Date.now();for(const c of conns.values())if(c.open)try{c.send({t:'ping'})}catch(e){}
+ if(!st.host){const c=[...conns.values()][0];if(c)setTimeout(()=>{if(conns.get(c.peer)===c&&(seen.get(c.peer)||0)<t0){conns.delete(c.peer);try{c.close()}catch(e){}hostLost()}},4000)}}
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)wake()});addEventListener('online',wake);addEventListener('pageshow',e=>{if(e.persisted)wake()});
 function bcastPeers(){st.peers=[{...me},...pinfo.values()];send({t:'peers',l:st.peers});renderPeers();setStatus('on')}
 const NET_OK=new Set(['put','pen0','pen','del','note','ndel','bg','grid','theme','cur','chat']),NET_DRAW=new Set(['put','pen0','pen','del','note','ndel','bg','grid','theme']);
 const kicked=new Set(),banned=new Set(),ptok=new Map(),pending=new Map(),admitted=new Set(),approved=new Set();
@@ -429,7 +450,9 @@ function handle(m,from){if(!m||typeof m!=='object')return;if(m.color)m.color=okc
  if(st.host&&from){const i=pinfo.get(from.peer);if(!i||!NET_OK.has(m.t)||(i.nd&&NET_DRAW.has(m.t))||(i.nc&&m.t==='chat'))return;if(m.t==='chat'){m.name=i.name;m.color=i.color;m.from=from.peer;m.text=String(m.text||'').slice(0,500);m.ts=+m.ts||Date.now()}}
  if(st.host&&m.t!=='hello')send(m,from);
  switch(m.t){
-  case 'snap':st.rj=false;$('#msgs').innerHTML='';(Array.isArray(m.c)?m.c:[]).slice(-300).forEach(x=>addMsg({name:String(x.name).slice(0,24),color:okc(x.color),text:String(x.text).slice(0,500),ts:+x.ts||Date.now(),from:x.from},1));setBg(m.bg||st.bg,1);setGrid(m.gr||st.grid,1);setTheme(m.th==='chalk'?'chalk':'board',1,m.cb);st.objs.clear();m.o.forEach(o=>st.objs.set(o.id,o));[...st.notes.keys()].forEach(delNote);m.n.forEach(n=>{st.notes.set(n.id,n);renderNote(n)});dirty=true;break;
+  case 'snap':var wasRj=st.rj,lo=wasRj?[...st.objs.values()]:[],ln=wasRj?[...st.notes.values()]:[];st.rj=false;$('#msgs').innerHTML='';(Array.isArray(m.c)?m.c:[]).slice(-300).forEach(x=>addMsg({name:String(x.name).slice(0,24),color:okc(x.color),text:String(x.text).slice(0,500),ts:+x.ts||Date.now(),from:x.from},1));setBg(m.bg||st.bg,1);setGrid(m.gr||st.grid,1);setTheme(m.th==='chalk'?'chalk':'board',1,m.cb);st.objs.clear();m.o.forEach(o=>st.objs.set(o.id,o));[...st.notes.keys()].forEach(delNote);m.n.forEach(n=>{st.notes.set(n.id,n);renderNote(n)});
+   if(wasRj){const io=new Set(m.o.map(o=>o.id)),inn=new Set(m.n.map(n=>n.id));lo.forEach(o=>{if(!io.has(o.id)&&o.type){st.objs.set(o.id,o);send({t:'put',o})}});ln.forEach(n=>{if(!inn.has(n.id)){st.notes.set(n.id,n);renderNote(n);send({t:'note',n})}})}
+   dirty=true;break;
   case 'peers':st.rj=false;st.peers=m.l;applyPerm(m.l.find(p=>p.id===me.id));renderPeers();setStatus('on');break;
   case 'wait':toast('Waiting for the host to let you in\u2026');setStatus('ping');break;
   case 'kick':if(!st.host){st.kicked=true;toast(m.why==='denied'?'The host declined your request':'The host removed you from the room');leaveRoom()}break;
@@ -522,7 +545,11 @@ function saveChat(){if(!st.host||!st.room)return;try{localStorage.setItem(chatKe
 function loadChat(){try{chatLog.length=0;JSON.parse(localStorage.getItem(chatKey(st.room))||'[]').forEach(m=>{chatLog.push(m);addMsg(m,1)})}catch(e){}}
 const SOLO_KEY='sketchmesh:solo',roomKey=c=>'sketchmesh:room:'+c;
 const bkey=()=>!st.room?SOLO_KEY:(st.host?roomKey(st.room):null); /* guests never store the room board */
-function saveNow(){clearTimeout(save.t);const k=bkey();if(!k)return;try{localStorage.setItem(k,JSON.stringify({o:[...st.objs.values()],n:[...st.notes.values()],bg:st.bg,gr:st.grid,th:st.theme,cb:st.cbg}))}catch(e){}}
+const GKEY=()=>'sketchmesh:guest:'+st.room;
+function saveNow(){clearTimeout(save.t);const k=bkey(),d={o:[...st.objs.values()],n:[...st.notes.values()],bg:st.bg,gr:st.grid,th:st.theme,cb:st.cbg};
+ if(!k){if(st.room&&!st.host&&(d.o.length||d.n.length))try{localStorage.setItem(GKEY(),JSON.stringify({...d,ts:Date.now()}))}catch(e){}return}
+ try{localStorage.setItem(k,JSON.stringify(d))}catch(e){}}
+function loadGuestBackup(){try{const d=JSON.parse(localStorage.getItem(GKEY())||'null');if(d&&Date.now()-d.ts<432e5){d.o.forEach(o=>st.objs.set(o.id,o));d.n.forEach(n=>{st.notes.set(n.id,n);renderNote(n)});dirty=true;toast('Restored the board from this device')}}catch(e){}}
 function save(){clearTimeout(save.t);save.t=setTimeout(saveNow,400)}
 function clearBoard(){clearTimeout(save.t);$('#msgs').innerHTML='';chatLog.length=0;st.objs.clear();[...st.notes.keys()].forEach(delNote);st.U=[];st.R=[];st.sel=null;setTheme('board',1,'#1b4332');setBg('#090a0f',1);setGrid('dots',1);syncBtns();dirty=true}
 function load(k){try{let raw=localStorage.getItem(k);if(!raw&&k===SOLO_KEY)raw=localStorage.getItem('sketchmesh:v1'); /* old single-board key, migrated once */
