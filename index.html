@@ -3,7 +3,32 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Inkroom: draw together in one place</title>
+<title>Inkroom: Online Collaborative Whiteboard, No Sign-Up</title>
+<meta name="description" content="Inkroom is a shared online whiteboard. Create a room, send a link and draw together live on a whiteboard or classic chalkboard. No sign-up.">
+<meta name="author" content="aymanstack">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<script>if(/[?&]room=/.test(location.search)){var m=document.querySelector('meta[name=robots]');if(m)m.setAttribute('content','noindex,follow')}</script>
+<link rel="canonical" href="https://ayman4t.github.io/whiteboard/">
+<meta name="theme-color" content="#f6f7f9" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0e15" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Inkroom">
+<meta property="og:title" content="Inkroom: Online Collaborative Whiteboard, No Sign-Up">
+<meta property="og:description" content="Inkroom is a shared online whiteboard. Create a room, send a link and draw together live on a whiteboard or classic chalkboard. No sign-up.">
+<meta property="og:url" content="https://ayman4t.github.io/whiteboard/">
+<meta property="og:image" content="https://ayman4t.github.io/whiteboard/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Inkroom: draw together in one place">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Inkroom: Online Collaborative Whiteboard, No Sign-Up">
+<meta name="twitter:description" content="Inkroom is a shared online whiteboard. Create a room, send a link and draw together live on a whiteboard or classic chalkboard. No sign-up.">
+<meta name="twitter:image" content="https://ayman4t.github.io/whiteboard/og-image.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[
+{"@type":"WebSite","@id":"https://ayman4t.github.io/whiteboard/#website","url":"https://ayman4t.github.io/whiteboard/","name":"Inkroom","description":"Inkroom is a shared online whiteboard. Create a room, send a link and draw together live on a whiteboard or classic chalkboard. No sign-up.","inLanguage":"en"},
+{"@type":"WebApplication","@id":"https://ayman4t.github.io/whiteboard/#app","name":"Inkroom","url":"https://ayman4t.github.io/whiteboard/","description":"Inkroom is a shared online whiteboard. Create a room, send a link and draw together live on a whiteboard or classic chalkboard. No sign-up.","applicationCategory":"DesignApplication","operatingSystem":"Any (web browser)","browserRequirements":"Requires JavaScript and a modern browser","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"featureList":["Shared infinite canvas","Whiteboard and chalkboard modes","Pen, highlighter, shapes and sticky notes","Engineering symbols and measuring","Photo markup","Video call and chat","Export as PNG"],"image":"https://ayman4t.github.io/whiteboard/og-image.png","publisher":{"@id":"https://ayman4t.github.io/whiteboard/#org"}},
+{"@type":"Organization","@id":"https://ayman4t.github.io/whiteboard/#org","name":"Inkroom","url":"https://ayman4t.github.io/whiteboard/","logo":"https://ayman4t.github.io/whiteboard/og-image.png","contactPoint":{"@type":"ContactPoint","contactType":"customer support","email":"salemaymen814@gmail.com"}}
+]}</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%2322d3ee'/%3E%3Cstop offset='1' stop-color='%23818cf8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M9 10h14M9 10l7 13M23 10l-7 13' stroke='%23090a0f' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='9' cy='10' r='3' fill='%23090a0f'/%3E%3Ccircle cx='23' cy='10' r='3' fill='%23090a0f'/%3E%3Ccircle cx='16' cy='23' r='3' fill='%23090a0f'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -144,15 +169,27 @@ body.lock{overflow:hidden}
  .a,.b,.c,.d,.e{grid-column:span 6}.steps{grid-template-columns:1fr}
  section{padding:64px 0}nav a.l{display:none}
 }
+.stk{display:grid;gap:16px}.stk .f:hover{transform:none;border-color:var(--line)}
+.stk .f{padding:22px 26px}.stk .f h3{font-size:21px;margin-bottom:6px}
+.by{margin-top:18px;color:var(--muted);font-weight:600}
+.cf{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:28px;display:grid;gap:8px;box-shadow:0 20px 50px -28px rgba(40,50,110,.5)}
+.cf label{font-weight:700;font-size:15px;margin-top:8px}
+.cf input:not([type=hidden]),.cf textarea{width:100%;padding:13px 16px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font:500 16px Manrope,sans-serif}
+.cf textarea{resize:vertical;min-height:120px}
+.cf input:focus-visible,.cf textarea:focus-visible{outline:3px solid var(--in);outline-offset:2px}
+.cf .btn{margin-top:14px;justify-self:start}.cf .btn:disabled{opacity:.6;cursor:wait}
+.cs{color:var(--muted);font-size:15px;min-height:1.6em}
+footer a{color:inherit}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body id="top">
 <header class="nv" id="nv"><div class="w nvi">
  <a class="logo" href="#top" style="text-decoration:none;color:inherit"><span class="mark"><svg viewBox="0 0 32 32" fill="none" stroke="#090a0f" stroke-width="2.6" stroke-linecap="round"><path d="M9 10h14M9 10l7 13M23 10l-7 13"/><circle cx="9" cy="10" r="3" fill="#090a0f"/><circle cx="23" cy="10" r="3" fill="#090a0f"/><circle cx="16" cy="23" r="3" fill="#090a0f"/></svg></span>Inkroom</a>
- <nav class="nl" aria-label="Sections"><a href="#features">Features</a><a href="#audience">Who it’s for</a><a href="#boards">Chalkboard</a><a href="#how">How it works</a></nav>
+ <nav class="nl" aria-label="Sections"><a href="#features">Features</a><a href="#audience">Who it’s for</a><a href="#boards">Chalkboard</a><a href="#how">How it works</a><a href="#about">About</a><a href="#contact">Contact</a></nav>
  <div class="nr"><button class="ib2" id="themeT" aria-label="Switch between light and dark">◐</button><button class="btn p sm" data-go="new">Create a room</button></div>
 </div><i class="prog" id="prog"></i></header>
+<main>
 <div class="top"><div class="w">
   <header class="hero">
   <div>
@@ -260,9 +297,42 @@ body.lock{overflow:hidden}
  </div>
 </div></section>
 
+<section id="about"><div class="w eng">
+  <div>
+   <h2>About Inkroom</h2>
+   <p class="lead">Inkroom is a shared infinite whiteboard that lives in a single web page. It was built so a group can start sketching together in seconds, without accounts, installs or setup.</p>
+   <p class="lead">Drawings travel directly between the browsers in your room, and the host decides who joins. Whether it is a team brainstorm, a lesson on a chalkboard or an engineering sketch, Inkroom keeps the canvas simple and fast.</p>
+   <p class="by">Made by aymanstack</p>
+  </div>
+  <div class="stk">
+   <div class="f"><h3>No sign-up</h3><p>Nothing to create or install. Share a link and start drawing.</p></div>
+   <div class="f"><h3>Direct connections</h3><p>Rooms connect browser to browser, and the host approves every newcomer.</p></div>
+   <div class="f"><h3>Built for real work</h3><p>Chalkboards, engineering symbols, photo markup, video and chat in one place.</p></div>
+  </div>
+ </div></section>
+
+<section id="contact"><div class="w eng">
+  <div>
+   <h2>Contact us</h2>
+   <p class="lead">Questions, feedback or an idea for Inkroom? Send us a message and we’ll reply by email.</p>
+  </div>
+  <form class="cf" id="cform" action="https://formsubmit.co/salemaymen814@gmail.com" method="POST" data-ajax="https://formsubmit.co/ajax/salemaymen814@gmail.com">
+   <label for="cn">Your name</label><input id="cn" name="name" autocomplete="name" required>
+   <label for="ce">Your email</label><input id="ce" name="email" type="email" autocomplete="email" required>
+   <label for="cm">Message</label><textarea id="cm" name="message" rows="5" required></textarea>
+   <input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true">
+   <input type="hidden" name="_subject" value="New message from Inkroom">
+   <input type="hidden" name="_template" value="table">
+   <input type="hidden" name="_captcha" value="false">
+   <button class="btn p" type="submit">Send message</button>
+   <p class="cs" id="cstat" role="status" aria-live="polite"></p>
+  </form>
+ </div></section>
+
 <div class="cta"><div class="w"><div><h2>Your next meeting starts with a blank board.</h2><button class="btn" data-go="new">Create a room</button></div></div></div>
 
-<footer><div class="w fl"><span>Inkroom: a shared infinite whiteboard.</span><span>Made by <b>aymanstack</b></span></div></footer>
+</main>
+<footer><div class="w fl"><span>Inkroom: a shared infinite whiteboard. <a href="#about">About</a> · <a href="#contact">Contact</a></span><span>Made by <b>aymanstack</b></span></div></footer>
 
 <script>
 (function(){
@@ -328,6 +398,13 @@ addEventListener('scroll',sc,{passive:true});sc();
 var links=[].slice.call(document.querySelectorAll('.nl a'));
 if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting)links.forEach(function(a){a.classList.toggle('on',a.getAttribute('href')==='#'+e.target.id)})})},{rootMargin:'-45% 0px -50% 0px'});links.forEach(function(a){var t=document.querySelector(a.getAttribute('href'));if(t)io.observe(t)})}
 document.getElementById('themeT').onclick=function(){var d=document.documentElement,dark=d.dataset.theme?d.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;d.dataset.theme=dark?'light':'dark';if(window.__repaint)window.__repaint()};
+var cf=document.getElementById('cform'),cs=document.getElementById('cstat');
+if(cf)cf.addEventListener('submit',function(e){e.preventDefault();var b=cf.querySelector('button');b.disabled=true;cs.textContent='Sending…';
+ fetch(cf.dataset.ajax,{method:'POST',headers:{'Accept':'application/json'},body:new FormData(cf)})
+ .then(function(r){return r.json()})
+ .then(function(d){if(d.success===true||d.success==='true'){cf.reset();cs.textContent='Thanks! Your message was sent.'}else{cs.textContent=d.message||'Could not send your message. Please try again.'}})
+ .catch(function(){cs.textContent='Could not send your message. Please check your connection and try again.'})
+ .then(function(){b.disabled=false})});
 })();
 </script>
 </body>
