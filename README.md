@@ -36,3 +36,6 @@ Room ids on the signalling server look like `inkroom-<code>`.
 - When the host's link to the signalling server reconnects (laptop wake, mobile network switch),
   the guest list and chat are kept instead of being reset or duplicated.
 - Starting a call while the signalling link is down no longer breaks the people list.
+
+- Removing a guest no longer bans their device. If they open the room again they appear as a new
+  request and the host can allow or deny them. Bans saved by older versions are cleared.
