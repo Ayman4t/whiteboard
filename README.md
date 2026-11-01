@@ -39,3 +39,5 @@ Room ids on the signalling server look like `inkroom-<code>`.
 
 - Removing a guest no longer bans their device. If they open the room again they appear as a new
   request and the host can allow or deny them. Bans saved by older versions are cleared.
+- New voice-only button next to the camera button: talk with the microphone only, no camera. Voice-only
+  people show as a small name tile. Switching between voice and camera is one click.
